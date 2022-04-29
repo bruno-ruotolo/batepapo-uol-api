@@ -28,6 +28,31 @@ app.get("/participants", async (req, res) => {
   }
 })
 
+app.post("/participants", async (req, res) => {
+  try {
+    await mongoClient.connect();
+    db = mongoClient.db("projeto_12_UOL");
+
+    const participantName = req.body.name;
+    await db.collection("participants").insertOne({
+      name: participantName,
+      lastStatus: Date.now()
+    });
+    await db.collection("messages").insertOne({
+      from: participantName,
+      to: 'Todos',
+      text: 'entra na sala...',
+      type: 'status',
+      time: dayjs().format("HH:mm:ss")
+    });
+    res.sendStatus(201);
+    mongoClient.close();
+  } catch (e) {
+    res.status(500).send(e);
+    console.log(chalk.red.bold(e));
+    mongoClient.close();
+  }
+});
 
 app.listen(5000, () => console.log(chalk.blue.bold("Server ON")));
 

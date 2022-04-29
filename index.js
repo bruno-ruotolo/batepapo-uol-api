@@ -106,5 +106,5 @@ app.post("/messages", async (req, res) => {
   }
 })
 
-app.listen(5000, () => console.log(chalk.blue.bold("Server ON")));
+app.listen(process.env.PORT, () => console.log(chalk.blue.bold("Server ON")));
 

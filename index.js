@@ -54,5 +54,30 @@ app.post("/participants", async (req, res) => {
   }
 });
 
+app.get("/messages", async (req, res) => {
+  const { user } = req.headers;
+  const { limit } = req.query;
+  try {
+    await mongoClient.connect();
+    db = mongoClient.db("projeto_12_UOL");
+
+    if (limit) {
+      const messagesList = await db.collection("messages").find({ $or: [{ to: user }, { to: "Todos" }] }).toArray();
+      const messagesListSplice = [...messagesList].splice(0, parseInt(limit))
+      res.status(200).send(messagesListSplice);
+      return;
+    }
+
+    const messagesList = await db.collection("messages").find({ $or: [{ to: user }, { to: "Todos" }] }).toArray();
+    res.status(200).send(messagesList);
+
+    mongoClient.close();
+  } catch (e) {
+    res.status(500).send(e);
+    console.log(chalk.red.bold(e));
+    mongoClient.close();
+  }
+})
+
 app.listen(5000, () => console.log(chalk.blue.bold("Server ON")));
 

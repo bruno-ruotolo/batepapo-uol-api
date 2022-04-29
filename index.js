@@ -79,5 +79,32 @@ app.get("/messages", async (req, res) => {
   }
 })
 
+app.post("/messages", async (req, res) => {
+  const { user } = req.headers;
+
+  try {
+    const { body } = req
+    const reqBody =
+    {
+      to: body.to,
+      from: user,
+      text: body.text,
+      type: body.type,
+      time: dayjs().format("HH:mm:ss")
+    }
+
+    await mongoClient.connect();
+    db = mongoClient.db("projeto_12_UOL");
+    await db.collection("messages").insertOne(reqBody);
+    res.sendStatus(201);
+    mongoClient.close();
+
+  } catch (e) {
+    console.log(chalk.red.bold(e));
+    res.status(500).send(e);
+    mongoClient.close();
+  }
+})
+
 app.listen(5000, () => console.log(chalk.blue.bold("Server ON")));
 

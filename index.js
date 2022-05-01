@@ -44,8 +44,14 @@ app.post("/participants", async (req, res) => {
     const participantsValidation = participantsSchema.validate(participantName, { abortEarly: false });
 
     if (participantsValidation.error) {
-      console.log(participantsValidation);
-      res.sendStatus(422);
+      res.status(422).send(participantsValidation.error.message);
+      return;
+    }
+
+    const participantsExist = await db.collection("participants").findOne({ name: participantName.name })
+
+    if (participantsExist) {
+      res.sendStatus(409);
       return;
     }
 
@@ -98,17 +104,37 @@ app.get("/messages", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
   const { user } = req.headers;
+  const { body } = req
+  const reqBody =
+  {
+    to: body.to,
+    from: user,
+    text: body.text,
+    type: body.type,
+    time: dayjs().format("HH:mm:ss")
+  }
+
+  let participantsExist = await db.collection("participants").findOne({ name: user });
+  participantsExist = participantsExist ? { name: user } : { name: "a valid user" }
+
+  console.log(participantsExist.name);
+  const messagesSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('private_message', 'message'),
+    from: joi.string().required().valid(participantsExist.name),
+    time: joi.required()
+  })
+
+  const messagesValidate = messagesSchema.validate(reqBody, { abortEarly: false })
+
+  if (messagesValidate.error) {
+    res.status(422).send(messagesValidate.error.details.map((error) => { return error.message }))
+    return;
+  }
 
   try {
-    const { body } = req
-    const reqBody =
-    {
-      to: body.to,
-      from: user,
-      text: body.text,
-      type: body.type,
-      time: dayjs().format("HH:mm:ss")
-    }
+
     await db.collection("messages").insertOne(reqBody);
     res.sendStatus(201);
 

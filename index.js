@@ -4,8 +4,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
 import joi from "joi";
+import { stripHtml } from "string-strip-html"
 import chalk from "chalk";
 dotenv.config();
+
 
 const app = express();
 app.use(express.json());
@@ -26,6 +28,7 @@ promise.catch((e) => {
 app.get("/participants", async (req, res) => {
   try {
     const participantsList = await db.collection("participants").find({}).toArray();
+    console.log(chalk.green.bold("Participantes Puxados"));
     res.status(200).send(participantsList);
   } catch (e) {
     res.status(500).send(e);
@@ -48,7 +51,9 @@ app.post("/participants", async (req, res) => {
       return;
     }
 
-    const participantsExist = await db.collection("participants").findOne({ name: participantName.name })
+    let { name } = participantName
+    name = stripHtml(name).result.trim();
+    const participantsExist = await db.collection("participants").findOne({ name: name })
 
     if (participantsExist) {
       res.sendStatus(409);
@@ -56,17 +61,18 @@ app.post("/participants", async (req, res) => {
     }
 
     await db.collection("participants").insertOne({
-      name: participantName.name,
+      name: name,
       lastStatus: Date.now()
     });
     await db.collection("messages").insertOne({
-      from: participantName.name,
+      from: name,
       to: 'Todos',
       text: 'entra na sala...',
       type: 'status',
       time: dayjs().format("HH:mm:ss")
     });
-    res.sendStatus(201);
+    console.log(chalk.green.bold("Participante Registrado"))
+    res.status(201).send({ name: name });
   } catch (e) {
     res.status(500).send(e);
     console.log(chalk.red.bold(e));
@@ -84,7 +90,8 @@ app.get("/messages", async (req, res) => {
         .find({ $or: [{ to: user }, { to: "Todos" }, { type: "message" }, { from: user }] })
         .toArray();
 
-      const messagesListSplice = [...messagesList].splice(0, parseInt(limit))
+      const messagesListSplice = [...messagesList].reverse().splice(0, parseInt(limit)).reverse()
+      console.log(chalk.green.bold("Mensagens Puxadas"));
       res.status(200).send(messagesListSplice);
       return;
     }
@@ -107,17 +114,16 @@ app.post("/messages", async (req, res) => {
   const { body } = req
   const reqBody =
   {
-    to: body.to,
-    from: user,
-    text: body.text,
-    type: body.type,
+    to: stripHtml(body.to).result.trim(),
+    from: stripHtml(user).result.trim(),
+    text: stripHtml(body.text).result.trim(),
+    type: stripHtml(body.type).result.trim(),
     time: dayjs().format("HH:mm:ss")
   }
 
   let participantsExist = await db.collection("participants").findOne({ name: user });
   participantsExist = participantsExist ? { name: user } : { name: "a valid user" }
 
-  console.log(participantsExist.name);
   const messagesSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
@@ -136,6 +142,7 @@ app.post("/messages", async (req, res) => {
   try {
 
     await db.collection("messages").insertOne(reqBody);
+    console.log(chalk.green.bold("Mensagem Enviada"));
     res.sendStatus(201);
 
   } catch (e) {
@@ -157,6 +164,7 @@ app.post("/status", async (req, res) => {
     }
 
     await participantsCollection.updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
+    console.log(chalk.green.bold("Status Atualizado"));
     res.sendStatus(200);
 
   } catch (e) {

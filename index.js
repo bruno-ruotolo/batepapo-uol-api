@@ -8,10 +8,12 @@ import { stripHtml } from "string-strip-html"
 import chalk from "chalk";
 dotenv.config();
 
+// express configs
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+//mongodb configs
 let db = null;
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 const promise = mongoClient.connect();
@@ -23,11 +25,10 @@ promise.catch((e) => {
   console.log(chalk.red.bold("DB OFF", e))
 })
 
-//Participants Route
+//participants route
 app.get("/participants", async (req, res) => {
   try {
     const participantsList = await db.collection("participants").find({}).toArray();
-    console.log(chalk.green.bold("Participantes Puxados"));
     res.status(200).send(participantsList);
   } catch (e) {
     res.status(500).send(e);
@@ -70,7 +71,6 @@ app.post("/participants", async (req, res) => {
       type: 'status',
       time: dayjs().format("HH:mm:ss")
     });
-    console.log(chalk.green.bold("Participante Registrado"))
     res.status(201).send({ name: name });
   } catch (e) {
     res.status(500).send(e);
@@ -78,10 +78,11 @@ app.post("/participants", async (req, res) => {
   }
 });
 
-//Messages Route
+//messages route
 app.get("/messages", async (req, res) => {
   const { user } = req.headers;
   const { limit } = req.query;
+
   try {
     if (limit) {
       const messagesList = await db
@@ -90,7 +91,6 @@ app.get("/messages", async (req, res) => {
         .toArray();
 
       const messagesListSplice = [...messagesList].reverse().splice(0, parseInt(limit)).reverse()
-      console.log(chalk.green.bold("Mensagens Puxadas"));
       res.status(200).send(messagesListSplice);
       return;
     }
@@ -141,7 +141,6 @@ app.post("/messages", async (req, res) => {
   try {
 
     await db.collection("messages").insertOne(reqBody);
-    console.log(chalk.green.bold("Mensagem Enviada"));
     res.sendStatus(201);
 
   } catch (e) {
@@ -176,17 +175,13 @@ app.delete("/messages/:id", async (req, res) => {
   }
 });
 
-
 app.put("/messages/:id", async (req, res) => {
   const { id } = req.params;
   const { user } = req.headers;
   const { to, text, type } = req.body;
 
-
   try {
-
     let participant = await db.collection("participants").findOne({ name: user });
-
     participant = participant ? participant : { name: null }
 
     const reqBody = {
@@ -216,7 +211,6 @@ app.put("/messages/:id", async (req, res) => {
     }
 
     const searchUser = await db.collection("messages").find({ _id: new ObjectId(id), from: user }).toArray();
-
     if (searchUser.length === 0) {
       res.sendStatus(401);
       return;
@@ -227,11 +221,11 @@ app.put("/messages/:id", async (req, res) => {
 
   } catch (e) {
     res.sendStatus(500);
-    console.log(chalk.red.bold(e))
+    console.log(chalk.red.bold(e));
   }
 });
 
-//Status Route
+//status route
 app.post("/status", async (req, res) => {
   const { user } = req.headers;
   try {
@@ -244,7 +238,6 @@ app.post("/status", async (req, res) => {
     }
 
     await participantsCollection.updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
-    console.log(chalk.green.bold("Status Atualizado"));
     res.sendStatus(200);
 
   } catch (e) {
@@ -253,8 +246,7 @@ app.post("/status", async (req, res) => {
   }
 });
 
-
-//Remove Participants
+//remove participants
 setInterval(async () => {
   try {
     const participantsCollection = db.collection("participants");
@@ -282,9 +274,6 @@ setInterval(async () => {
   } catch (e) {
     console.log(chalk.red.bold(e));
   }
-
 }, 15000);
 
-
 app.listen(process.env.PORT, () => console.log(chalk.blue.bold("Server ON")));
-

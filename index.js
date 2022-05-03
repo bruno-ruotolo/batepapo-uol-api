@@ -8,7 +8,6 @@ import { stripHtml } from "string-strip-html"
 import chalk from "chalk";
 dotenv.config();
 
-
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -107,7 +106,7 @@ app.get("/messages", async (req, res) => {
     res.status(500).send(e);
     console.log(chalk.red.bold(e));
   }
-})
+});
 
 app.post("/messages", async (req, res) => {
   const { user } = req.headers;
@@ -130,9 +129,9 @@ app.post("/messages", async (req, res) => {
     type: joi.string().valid('private_message', 'message'),
     from: joi.string().required().valid(participantsExist.name),
     time: joi.required()
-  })
+  });
 
-  const messagesValidate = messagesSchema.validate(reqBody, { abortEarly: false })
+  const messagesValidate = messagesSchema.validate(reqBody, { abortEarly: false });
 
   if (messagesValidate.error) {
     res.status(422).send(messagesValidate.error.details.map((error) => { return error.message }))
@@ -149,7 +148,33 @@ app.post("/messages", async (req, res) => {
     console.log(chalk.red.bold(e));
     res.status(500).send(e);
   }
-})
+});
+
+app.delete("/messages/:id", async (req, res) => {
+  const { id } = req.params;
+  const { user } = req.headers;
+
+  try {
+    const searchMessageId = await db.collection("messages").find({ _id: new ObjectId(id) }).toArray();
+    if (searchMessageId.length === 0) {
+      res.sendStatus(404);
+      return;
+    }
+
+    const searchUser = await db.collection("messages").find({ _id: new ObjectId(id), from: user }).toArray();
+
+    if (searchUser.length === 0) {
+      res.sendStatus(401);
+      return;
+    }
+
+    await db.collection("messages").deleteOne({ _id: new ObjectId(id) });
+    res.sendStatus(201);
+
+  } catch (e) {
+    res.sendStatus(500);
+  }
+});
 
 //Status Route
 app.post("/status", async (req, res) => {
@@ -163,7 +188,7 @@ app.post("/status", async (req, res) => {
       return;
     }
 
-    await participantsCollection.updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
+    await participantsCollection.updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
     console.log(chalk.green.bold("Status Atualizado"));
     res.sendStatus(200);
 
@@ -171,7 +196,7 @@ app.post("/status", async (req, res) => {
     console.log(chalk.red.bold(e));
     res.status(500).send(e);
   }
-})
+});
 
 //Remove Participants
 setInterval(async () => {
@@ -203,6 +228,7 @@ setInterval(async () => {
   }
 
 }, 15000);
+
 
 app.listen(process.env.PORT, () => console.log(chalk.blue.bold("Server ON")));
 
